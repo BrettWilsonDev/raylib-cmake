@@ -4,6 +4,8 @@ project(${PROJECT_NAME} CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 
+set(PLATFORM "Desktop")
+
 ##########################################################################################
 # Configurable options
 ##########################################################################################
@@ -83,7 +85,7 @@ if(USE_RAYLIB)
     add_git_dependency(
         ${dep}
         https://github.com/raysan5/raylib.git
-        head
+        HEAD
     )
     
     FetchContent_GetProperties(${dep})
@@ -106,7 +108,7 @@ if(USE_IMGUI)
     add_git_dependency(
         RlImGui
         https://github.com/raylib-extras/rlImGui.git
-        head
+        HEAD
     )
 
     file(REMOVE_RECURSE build/_deps/rlimgui-src/examples)
@@ -119,7 +121,7 @@ if(USE_IMGUI)
     add_git_dependency(
         imGui
         https://github.com/ocornut/imgui.git
-        head
+        HEAD
     )
 
     file(REMOVE_RECURSE build/_deps/imgui-src/examples)
@@ -141,7 +143,7 @@ if(USE_LDTKLOADER)
     add_git_dependency(
         ${dep}
         https://github.com/Madour/LDtkLoader.git
-        head
+        HEAD
     )
 
     FetchContent_GetProperties(${dep})
@@ -159,7 +161,7 @@ if(USE_FMT)
     add_git_dependency(
         ${dep}
         https://github.com/fmtlib/fmt.git
-        head
+        HEAD
     )
 
     FetchContent_GetProperties(${dep})
@@ -180,7 +182,7 @@ if(USE_BOX2D)
     add_git_dependency(
         ${dep}
         https://github.com/erincatto/box2d.git
-        head
+        HEAD
     )
 
     # add the dependency here to be linked
@@ -201,7 +203,7 @@ if(USE_BULLET3)
     add_git_dependency(
         ${dep}
         https://github.com/bulletphysics/bullet3.git
-        head
+        HEAD
     )
 
     FetchContent_GetProperties(${dep})
@@ -227,7 +229,7 @@ if(USE_REACTPHYSICS3D)
     add_git_dependency(
         ${dep}
         https://github.com/DanielChappuis/ReactPhysics3D.git
-        head
+        HEAD
     )
     FetchContent_GetProperties(${dep})
 
@@ -393,14 +395,14 @@ endif()
 # turn on minamal raylib config build to include minimal raylib modules
 if(USE_MINIMAL_RAYLIB_MODULES AND USE_RAYLIB)
     # Function to toggle a define in a given config file
+    # Only write the file if the contents actually change to avoid
+    # updating timestamps and forcing recompilation of raylib.
     function(toggle_define file_path define)
         file(READ "${file_path}" input_file_contents)
         string(REPLACE "// #define ${define}" "#define ${define}" modified_contents "${input_file_contents}")
-        file(WRITE "${file_path}" "${modified_contents}")
-
-        file(READ "${file_path}" input_file_contents)
-        string(REPLACE "#define ${define}" "// #define ${define}" modified_contents "${input_file_contents}")
-        file(WRITE "${file_path}" "${modified_contents}")
+        if(NOT input_file_contents STREQUAL "${modified_contents}")
+            file(WRITE "${file_path}" "${modified_contents}")
+        endif()
     endfunction()
 
     # choose raylib modules to be excluded by uncommenting the lines below
@@ -417,19 +419,18 @@ if(USE_MINIMAL_RAYLIB_MODULES AND USE_RAYLIB)
         toggle_define("${CMAKE_CURRENT_SOURCE_DIR}/build/_deps/raylib-src/src/config.h" ${currentString})
     endforeach()
 
-    # enusre raylib is rebuilt with new config.h
-    add_custom_command(
-        TARGET ${PROJECT_NAME}
-        PRE_BUILD
-        COMMAND ${CMAKE_COMMAND} .
-    )
+    # (removed forced PRE_BUILD reconfigure to avoid rebuilding raylib each run)
 else()
     if(USE_RAYLIB)
         # Function to toggle a define in a given config file
+        # Only write the file if the contents change to avoid touching
+        # raylib source files unnecessarily and triggering rebuilds.
         function(toggle_define file_path define)
             file(READ "${file_path}" input_file_contents)
             string(REPLACE "// #define ${define}" "#define ${define}" modified_contents "${input_file_contents}")
-            file(WRITE "${file_path}" "${modified_contents}")
+            if(NOT input_file_contents STREQUAL "${modified_contents}")
+                file(WRITE "${file_path}" "${modified_contents}")
+            endif()
         endfunction()
 
         # used to make sure all modules are turned back on
@@ -446,12 +447,7 @@ else()
             toggle_define("${CMAKE_CURRENT_SOURCE_DIR}/build/_deps/raylib-src/src/config.h" ${currentString})
         endforeach()
 
-        # enusre raylib is rebuilt with new config.h
-        add_custom_command(
-            TARGET ${PROJECT_NAME}
-            PRE_BUILD
-            COMMAND ${CMAKE_COMMAND} .
-        )
+        # (removed forced PRE_BUILD reconfigure to avoid rebuilding raylib each run)
     endif()
 endif()
 
